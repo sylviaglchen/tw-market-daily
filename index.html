@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>台股法人與融資融券</title>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--tx:#1b1f24;--mut:#5f6773;--line:#e2e5ea;--up:#d32f2f;--dn:#0b8a4a;--warn:#fff1d6;--warnx:#7a4b00;color-scheme:light dark}
+@media (prefers-color-scheme:dark){:root{--bg:#111418;--card:#1b2027;--tx:#eceff3;--mut:#a3aab5;--line:#2d343e;--up:#ff6b61;--dn:#42dc8b;--warn:#3b2f12;--warnx:#f3c66f}}
+body{margin:0;background:var(--bg);color:var(--tx);font:18px/1.6 -apple-system,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif}
+main{max-width:760px;margin:0 auto;padding:14px 12px 40px}
+h1{font-size:24px;margin:6px 0 10px}h2{font-size:20px;margin:0 0 4px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.sub{color:var(--mut);font-size:15px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.item{border-top:1px solid var(--line);padding-top:8px}
+.item .n{font-size:15px;color:var(--mut)}
+.big{font-size:30px;font-weight:700;line-height:1.2}
+.mid{font-size:22px;font-weight:700}
+.up{color:var(--up)}.dn{color:var(--dn)}.fl{color:var(--mut)}
+.warn{background:var(--warn);color:var(--warnx);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:16px}
+.tag{font-size:13px;background:var(--line);color:var(--mut);border-radius:99px;padding:1px 9px;margin-left:6px;vertical-align:3px}
+details{margin-top:12px}summary{cursor:pointer;color:var(--mut);font-size:16px}
+.sc{overflow-x:auto}table{border-collapse:collapse;width:100%;min-width:480px;font-size:15px}
+th,td{padding:6px;text-align:right;border-top:1px solid var(--line)}th:first-child,td:first-child{text-align:left}
+.foot{color:var(--mut);font-size:14px;margin-top:16px}
+</style>
+</head>
+<body>
+<main>
+<h1>台股法人與融資融券</h1>
+<div id="app" class="sub">資料載入中…</div>
+<p class="foot">資料來源：臺灣證券交易所（上市）。金額單位為億元。紅色＝增加／買超，綠色＝減少／賣超。資料僅供參考，不是投資建議。<br>原始資料：<a href="https://www.twse.com.tw/zh/trading/foreign/bfi82u.html">三大法人</a>、<a href="https://www.twse.com.tw/zh/trading/margin/mi-margn.html">融資融券</a></p>
+</main>
+<script>
+(function(){
+var N={dealerOwn:"自營商（自行買賣）",dealerHedge:"自營商（避險）",trust:"投信",foreign:"外資"};
+function f(n){return Math.abs(n).toLocaleString("en-US")}
+function yi(n,sign){var a=Math.abs(n)/1e8,s=n<0?"-":(sign&&n>0?"+":"");return s+a.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})+"億"}
+function c(n){return n>0?"up":(n<0?"dn":"fl")}
+function net(r){return r[0]-r[1]}
+function dealer(d){var a=d.rows.dealerOwn,b=d.rows.dealerHedge;return [a[0]+b[0],a[1]+b[1]]}
+function total(d){var t=[0,0];["dealerOwn","dealerHedge","trust","foreign"].forEach(function(k){t[0]+=d.rows[k][0];t[1]+=d.rows[k][1]});return t}
+function twToday(){return new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Taipei"}).format(new Date())}
+function age(date){return Math.round((new Date(twToday())-new Date(date))/864e5)}
+function stamp(s){return s?s.replace("T"," ").slice(0,16):""}
+function sw(label,n){return '<div class="item"><div class="n">'+label+'</div><div class="big '+c(n)+'">'+(n>0?"買超 ":(n<0?"賣超 ":""))+yi(Math.abs(n))+'</div></div>'}
+function chg(label,v,yuan){return '<div class="item"><div class="n">'+label+'</div><div class="mid '+c(v)+'">'+(v>0?"增加 ":(v<0?"減少 ":"持平 "))+(yuan?yi(Math.abs(v)):f(v)+" 張")+'</div></div>'}
+function render(I,M){
+  var h="",today=twToday();
+  var i0=I.days[0],i1=I.days[1],m0=M.days[0];
+  if(!i0||!m0){document.getElementById("app").textContent="目前沒有資料。";return}
+  if(age(i0.date)>4||age(m0.date)>4)h+='<div class="warn">⚠ 資料可能已停止更新（最新日期：三大法人 '+i0.date+'、融資融券 '+m0.date+'），請以證交所網站為準。</div>';
+  var t=total(i0),pt=i1?total(i1):null;
+  h+='<div class="card"><h2>三大法人買賣超'+(i0.date!==today?'<span class="tag">今天尚未公布</span>':'')+'</h2><div class="sub">資料日期：'+i0.date+'　更新：'+stamp(I.updated)+'</div><div class="grid">'
+    +sw("外資",net(i0.rows.foreign))+sw("投信",net(i0.rows.trust))+sw("自營商",net(dealer(i0)))+sw("三大法人合計",net(t))+'</div>';
+  if(pt)h+='<p class="sub">合計較前一交易日（'+i1.date+'）：<span class="'+c(net(t)-net(pt))+'">'+yi(net(t)-net(pt),true)+'</span></p>';
+  var run=0,dir=Math.sign(net(i0.rows.foreign));
+  if(dir)for(var k=0;k<I.days.length;k++){if(Math.sign(net(I.days[k].rows.foreign))===dir)run++;else break}
+  var s5=0,n5=Math.min(5,I.days.length);for(k=0;k<n5;k++)s5+=net(I.days[k].rows.foreign);
+  h+='<p class="sub">外資'+(dir?'連續'+(dir>0?'買超':'賣超')+' <b>'+run+'</b> 天':'持平')+'；近 '+n5+' 天累計 <span class="'+c(s5)+'">'+yi(s5,true)+'</span></p>';
+  h+='<details><summary>看明細（買進／賣出）</summary><div class="sc"><table><tr><th>單位</th><th>買進</th><th>賣出</th><th>買賣差額</th></tr>';
+  ["dealerOwn","dealerHedge","trust","foreign"].forEach(function(k){var r=i0.rows[k];h+='<tr><td>'+N[k]+'</td><td>'+yi(r[0])+'</td><td>'+yi(r[1])+'</td><td class="'+c(net(r))+'">'+yi(net(r),true)+'</td></tr>'});
+  h+='<tr><td><b>合計</b></td><td>'+yi(t[0])+'</td><td>'+yi(t[1])+'</td><td class="'+c(net(t))+'">'+yi(net(t),true)+'</td></tr></table></div>';
+  h+='<div class="sc"><table><tr><th>日期</th><th>外資</th><th>投信</th><th>自營商</th><th>合計</th></tr>';
+  I.days.slice(0,10).forEach(function(d){h+='<tr><td>'+d.date.slice(5)+'</td><td class="'+c(net(d.rows.foreign))+'">'+yi(net(d.rows.foreign),true)+'</td><td class="'+c(net(d.rows.trust))+'">'+yi(net(d.rows.trust),true)+'</td><td class="'+c(net(dealer(d)))+'">'+yi(net(dealer(d)),true)+'</td><td class="'+c(net(total(d)))+'">'+yi(net(total(d)),true)+'</td></tr>'});
+  h+='</table></div></details></div>';
+  var mg=m0.margin,sh=m0.short,am=m0.amount,ratio=mg.today?sh.today/mg.today*100:0;
+  h+='<div class="card"><h2>融資融券'+(m0.date!==today?'<span class="tag">今天尚未公布</span>':'')+(m0.final?'':'<span class="tag">當日暫定，隔天校正</span>')+'</h2><div class="sub">資料日期：'+m0.date+'　更新：'+stamp(M.updated)+'</div><div class="grid">'
+    +'<div class="item"><div class="n">融資餘額</div><div class="big">'+yi(am.today*1000)+'</div><div class="sub">'+f(mg.today)+' 張</div></div>'
+    +'<div class="item"><div class="n">融券餘額</div><div class="big">'+f(sh.today)+' 張</div></div>'
+    +chg("融資金額較前日",(am.today-am.prev)*1000,true)
+    +chg("融券張數較前日",sh.today-sh.prev,false)+'</div>'
+    +'<p class="sub">融資張數較前日：<span class="'+c(mg.today-mg.prev)+'">'+(mg.today-mg.prev>0?"+":(mg.today-mg.prev<0?"-":""))+f(mg.today-mg.prev)+' 張</span>　券資比：'+ratio.toFixed(2)+'%</p>';
+  h+='<details><summary>看明細（買進／賣出／還款）</summary><div class="sc"><table><tr><th>項目</th><th>買進</th><th>賣出</th><th>償還</th><th>前日餘額</th><th>今日餘額</th></tr>'
+    +'<tr><td>融資（張）</td><td>'+f(mg.buy)+'</td><td>'+f(mg.sell)+'</td><td>'+f(mg.repay)+'</td><td>'+f(mg.prev)+'</td><td>'+f(mg.today)+'</td></tr>'
+    +'<tr><td>融券（張）</td><td>'+f(sh.buy)+'</td><td>'+f(sh.sell)+'</td><td>'+f(sh.repay)+'</td><td>'+f(sh.prev)+'</td><td>'+f(sh.today)+'</td></tr></table></div></details></div>';
+  document.getElementById("app").className="";document.getElementById("app").innerHTML=h}
+function load(u){return fetch(u+"?t="+Date.now()).then(function(r){if(!r.ok)throw 0;return r.json()})}
+Promise.all([load("data/institutional.json"),load("data/margin.json")]).then(function(a){render(a[0],a[1])}).catch(function(){document.getElementById("app").textContent="資料讀取失敗，請稍後再試。"});
+})();
+</script>
+</body>
+</html>
